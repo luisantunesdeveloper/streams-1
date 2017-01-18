@@ -3,7 +3,7 @@ const assert = require('assert');
 const { InvokeOrNoop, PromiseInvokeOrNoop, ValidateAndNormalizeQueuingStrategy, typeIsObject } =
   require('./helpers.js');
 const { rethrowAssertionErrorRejection } = require('./utils.js');
-const { DequeueValue, EnqueueValueWithSize, GetTotalQueueSize, PeekQueueValue } = require('./queue-with-sizes.js');
+const { DequeueValue, EnqueueValueWithSize, PeekQueueValue, ResetQueue } = require('./queue-with-sizes.js');
 
 class WritableStream {
   constructor(underlyingSink = {}, { size, highWaterMark = 1 } = {}) {
@@ -528,7 +528,10 @@ class WritableStreamDefaultController {
 
     this._underlyingSink = underlyingSink;
 
-    this._queue = [];
+    // Need to set the slots so that the assert doesn't fire. In the spec the slots already exist implicitly.
+    this._queue = this._queueTotalSize = undefined;
+    ResetQueue(this);
+
     this._started = false;
     this._writing = false;
     this._inClose = false;
@@ -575,20 +578,18 @@ class WritableStreamDefaultController {
 // Abstract operations implementing interface required by the WritableStream.
 
 function WritableStreamDefaultControllerAbort(controller, reason) {
-  controller._queue = [];
-
+  ResetQueue(controller);
   const sinkAbortPromise = PromiseInvokeOrNoop(controller._underlyingSink, 'abort', [reason]);
   return sinkAbortPromise.then(() => undefined);
 }
 
 function WritableStreamDefaultControllerClose(controller) {
-  EnqueueValueWithSize(controller._queue, 'close', 0);
+  EnqueueValueWithSize(controller, 'close', 0);
   WritableStreamDefaultControllerAdvanceQueueIfNeeded(controller);
 }
 
 function WritableStreamDefaultControllerGetDesiredSize(controller) {
-  const queueSize = GetTotalQueueSize(controller._queue);
-  return controller._strategyHWM - queueSize;
+  return controller._strategyHWM - controller._queueTotalSize;
 }
 
 function WritableStreamDefaultControllerWrite(controller, chunk) {
@@ -614,7 +615,7 @@ function WritableStreamDefaultControllerWrite(controller, chunk) {
   const lastBackpressure = WritableStreamDefaultControllerGetBackpressure(controller);
 
   try {
-    EnqueueValueWithSize(controller._queue, writeRecord, chunkSize);
+    EnqueueValueWithSize(controller, writeRecord, chunkSize);
   } catch (enqueueE) {
     WritableStreamDefaultControllerErrorIfNeeded(controller, enqueueE);
     return;
@@ -662,7 +663,7 @@ function WritableStreamDefaultControllerAdvanceQueueIfNeeded(controller) {
     return;
   }
 
-  const writeRecord = PeekQueueValue(controller._queue);
+  const writeRecord = PeekQueueValue(controller);
   if (writeRecord === 'close') {
     WritableStreamDefaultControllerProcessClose(controller);
   } else {
@@ -682,7 +683,7 @@ function WritableStreamDefaultControllerProcessClose(controller) {
 
   assert(stream._state === 'closing', 'can\'t process final write record unless already closed');
 
-  DequeueValue(controller._queue);
+  DequeueValue(controller);
   assert(controller._queue.length === 0, 'queue must be empty once the final write record is dequeued');
 
   controller._inClose = true;
@@ -743,7 +744,7 @@ function WritableStreamDefaultControllerProcessWrite(controller, chunk) {
         return;
       }
       const lastBackpressure = WritableStreamDefaultControllerGetBackpressure(controller);
-      DequeueValue(controller._queue);
+      DequeueValue(controller);
       if (state !== 'closing') {
         const backpressure = WritableStreamDefaultControllerGetBackpressure(controller);
         if (lastBackpressure !== backpressure) {
@@ -787,8 +788,7 @@ function WritableStreamDefaultControllerError(controller, e) {
   assert(stream._state === 'writable' || stream._state === 'closing');
 
   WritableStreamError(stream, e);
-
-  controller._queue = [];
+  ResetQueue(controller);
 }
 
 // Helper functions for the WritableStream.
