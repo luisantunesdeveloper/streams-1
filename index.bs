@@ -1740,6 +1740,10 @@ the {{ReadableStreamDefaultController/desiredSize}} property of the stream's ass
 Specifications should <em>not</em> use this on streams they did not create.
 
 <emu-alg>
+  1. Let _stream_ be _controller_.[[controlledReadableStream]].
+  1. Let _state_ be _stream_.[[state]].
+  1. If _state_ is `"errored"`, return *null*.
+  1. If _state_ is `"closed"`, return *0*.
   1. Return _controller_.[[strategyHWM]] − _controller_.[[queueTotalSize]].
 </emu-alg>
 
@@ -2295,6 +2299,10 @@ nothrow>ReadableByteStreamControllerFillPullIntoDescriptorFromQueue ( <var>contr
 nothrow>ReadableByteStreamControllerGetDesiredSize ( <var>controller</var> )</h4>
 
 <emu-alg>
+  1. Let _stream_ be _controller_.[[controlledReadableStream]].
+  1. Let _state_ be _stream_.[[state]].
+  1. If _state_ is `"errored"`, return *null*.
+  1. If _state_ is `"closed"`, return *0*.
   1. Return _controller_.[[strategyHWM]] − _controller_.[[queueTotalSize]].
 </emu-alg>
 

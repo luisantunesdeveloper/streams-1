@@ -1108,6 +1108,16 @@ function ReadableStreamDefaultControllerErrorIfNeeded(controller, e) {
 }
 
 function ReadableStreamDefaultControllerGetDesiredSize(controller) {
+  const stream = controller._controlledReadableStream;
+  const state = stream._state;
+
+  if (state === 'errored') {
+    return null;
+  }
+  if (state === 'closed') {
+    return 0;
+  }
+
   return controller._strategyHWM - controller._queueTotalSize;
 }
 
@@ -1777,6 +1787,16 @@ function ReadableByteStreamControllerError(controller, e) {
 }
 
 function ReadableByteStreamControllerGetDesiredSize(controller) {
+  const stream = controller._controlledReadableStream;
+  const state = stream._state;
+
+  if (state === 'errored') {
+    return null;
+  }
+  if (state === 'closed') {
+    return 0;
+  }
+
   return controller._strategyHWM - controller._queueTotalSize;
 }
 
