@@ -170,7 +170,7 @@ class ReadableStream {
       });
 
       // Closing must be propagated backward
-      if (dest._state === 'closing' || dest._state === 'closed') {
+      if ((dest._state === 'writable' && dest._closeRequest !== undefined) || dest._state === 'closed') {
         const destClosed = new TypeError('the destination writable stream closed before all data could be piped to it');
 
         if (preventCancel === false) {
