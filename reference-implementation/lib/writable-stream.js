@@ -133,7 +133,7 @@ function WritableStreamAbort(stream, reason) {
     readyPromiseIsPending = true;
   }
 
-  if (controller._writing === false && controller._inClose === false) {
+  if (WritableStreamDefaultControllerHasPendingOperation(controller) === false) {
     if (stream._writer !== undefined) {
       WritableStreamDefaultWriterEnsureReadyPromiseRejectedWith(
           stream._writer, error, readyPromiseIsPending);
@@ -633,7 +633,8 @@ function WritableStreamDefaultWriterRelease(writer) {
   const state = stream._state;
 
   const controller = stream._writableStreamController;
-  if (state === 'writable' || state === 'closing' || controller._inClose === true || controller._writing === true) {
+  if (state === 'writable' || state === 'closing' ||
+      WritableStreamDefaultControllerHasPendingOperation(controller) === true) {
     defaultWriterClosedPromiseReject(writer, releasedError);
   } else {
     defaultWriterClosedPromiseResetToRejected(writer, releasedError);
@@ -750,6 +751,14 @@ function WritableStreamDefaultControllerClose(controller) {
 function WritableStreamDefaultControllerGetDesiredSize(controller) {
   const queueSize = GetTotalQueueSize(controller._queue);
   return controller._strategyHWM - queueSize;
+}
+
+function WritableStreamDefaultControllerHasPendingOperation(controller) {
+  if (controller._writing === true || controller._inClose === true) {
+    return true;
+  }
+
+  return false;
 }
 
 function WritableStreamDefaultControllerUpdateBackpressureIfNeeded(controller, oldBackpressure) {
@@ -948,7 +957,7 @@ function WritableStreamDefaultControllerError(controller, e) {
 
   // This method can be called during the construction of the controller, in which case "controller" will be undefined
   // but the flags are guaranteed to be false anyway.
-  if (controller === undefined || controller._writing === false && controller._inClose === false) {
+  if (controller === undefined || WritableStreamDefaultControllerHasPendingOperation(controller) === false) {
     WritableStreamRejectPromisesInReactionToError(stream);
   }
 }
