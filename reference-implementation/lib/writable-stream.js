@@ -187,16 +187,16 @@ function WritableStreamAddWriteRequest(stream) {
 }
 
 function WritableStreamFinishInflightWrite(stream) {
-  assert(stream._inflightWriteRequest !== undefined);
-  stream._inflightWriteRequest._resolve(undefined);
-  stream._inflightWriteRequest = undefined;
-
   const state = stream._state;
 
   let wasAborted = false;
   if (stream._pendingAbortRequest !== undefined) {
     wasAborted = true;
   }
+
+  assert(stream._inflightWriteRequest !== undefined);
+  stream._inflightWriteRequest._resolve(undefined);
+  stream._inflightWriteRequest = undefined;
 
   if (state === 'errored') {
     if (wasAborted === true) {
@@ -227,10 +227,6 @@ function WritableStreamFinishInflightWrite(stream) {
 }
 
 function WritableStreamFinishInflightWriteWithError(stream, reason) {
-  assert(stream._inflightWriteRequest !== undefined);
-  stream._inflightWriteRequest._reject(reason);
-  stream._inflightWriteRequest = undefined;
-
   const state = stream._state;
 
   let wasAborted = false;
@@ -243,6 +239,10 @@ function WritableStreamFinishInflightWriteWithError(stream, reason) {
       WritableStreamDefaultControllerGetBackpressure(stream._writableStreamController) === true) {
     readyPromiseIsPending = true;
   }
+
+  assert(stream._inflightWriteRequest !== undefined);
+  stream._inflightWriteRequest._reject(reason);
+  stream._inflightWriteRequest = undefined;
 
   if (wasAborted === true) {
     stream._pendingAbortRequest._reject(reason);
@@ -266,16 +266,16 @@ function WritableStreamFinishInflightWriteWithError(stream, reason) {
 }
 
 function WritableStreamFinishInflightClose(stream) {
-  assert(stream._inflightCloseRequest !== undefined);
-  stream._inflightCloseRequest._resolve(undefined);
-  stream._inflightCloseRequest = undefined;
-
   const state = stream._state;
 
   let wasAborted = false;
   if (stream._pendingAbortRequest !== undefined) {
     wasAborted = true;
   }
+
+  assert(stream._inflightCloseRequest !== undefined);
+  stream._inflightCloseRequest._resolve(undefined);
+  stream._inflightCloseRequest = undefined;
 
   if (state === 'errored') {
     if (wasAborted === true) {
@@ -309,16 +309,16 @@ function WritableStreamFinishInflightClose(stream) {
 }
 
 function WritableStreamFinishInflightCloseWithError(stream, reason) {
-  assert(stream._inflightCloseRequest !== undefined);
-  stream._inflightCloseRequest._reject(reason);
-  stream._inflightCloseRequest = undefined;
-
   const state = stream._state;
 
   let wasAborted = false;
   if (stream._pendingAbortRequest !== undefined) {
     wasAborted = true;
   }
+
+  assert(stream._inflightCloseRequest !== undefined);
+  stream._inflightCloseRequest._reject(reason);
+  stream._inflightCloseRequest = undefined;
 
   if (wasAborted === true) {
     stream._pendingAbortRequest._reject(reason);
@@ -341,6 +341,14 @@ function WritableStreamFinishInflightCloseWithError(stream, reason) {
   }
 
   WritableStreamRejectClosedPromiseIfAny(stream);
+}
+
+function WritableStreamHasOperationMarkedInflight(stream) {
+  if (stream._inflightWriteRequest === undefined && stream._inflightCloseRequest === undefined) {
+    return false;
+  }
+
+  return true;
 }
 
 function WritableStreamMarkCloseRequestInflight(stream) {
@@ -374,7 +382,7 @@ function WritableStreamRejectPromisesInReactionToError(stream) {
   stream._writeRequests = [];
 
   if (stream._closeRequest !== undefined) {
-    assert(stream._writableStreamController._inflightCloseRequest === undefined);
+    assert(stream._inflightCloseRequest === undefined);
 
     stream._closeRequest._reject(storedError);
     stream._closeRequest = undefined;
@@ -385,6 +393,7 @@ function WritableStreamRejectPromisesInReactionToError(stream) {
 
 function WritableStreamUpdateBackpressure(stream, backpressure) {
   assert(stream._state === 'writable');
+  assert(stream._closeRequest === undefined);
 
   const writer = stream._writer;
   if (writer === undefined) {
@@ -752,14 +761,6 @@ function WritableStreamDefaultControllerClose(controller) {
 function WritableStreamDefaultControllerGetDesiredSize(controller) {
   const queueSize = GetTotalQueueSize(controller._queue);
   return controller._strategyHWM - queueSize;
-}
-
-function WritableStreamHasOperationMarkedInflight(stream) {
-  if (stream._inflightWriteRequest === undefined && stream._inflightCloseRequest === undefined) {
-    return false;
-  }
-
-  return true;
 }
 
 function WritableStreamDefaultControllerUpdateBackpressureIfNeeded(controller, oldBackpressure) {
