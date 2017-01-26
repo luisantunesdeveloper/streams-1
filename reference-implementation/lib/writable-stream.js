@@ -371,7 +371,7 @@ function WritableStreamRejectPromisesInReactionToError(stream) {
     stream._closeRequest = undefined;
   }
 
-  WritableStreamRejectClosedPromiseIfAny(stream, error);
+  WritableStreamRejectClosedPromiseIfAny(stream);
 }
 
 function WritableStreamUpdateBackpressure(stream, backpressure) {
