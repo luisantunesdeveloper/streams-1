@@ -411,6 +411,7 @@ class WritableStreamDefaultWriter {
       if (stream._pendingAbortRequest !== undefined) {
         // TODO: Test this
         defaultWriterReadyPromiseInitializeAsRejected(this, stream._storedError);
+        this._readyPromise.catch(() => {});
       } else if (stream._closeRequest === undefined && stream._backpressure === true) {
         defaultWriterReadyPromiseInitialize(this);
       } else {
@@ -426,8 +427,8 @@ class WritableStreamDefaultWriter {
 
       // TODO: Test this
       const storedError = stream._storedError;
-      // defaultWriterReadyPromiseInitializeAsResolved(this, undefined);
       defaultWriterReadyPromiseInitializeAsRejected(this, storedError);
+      this._readyPromise.catch(() => {});
       defaultWriterClosedPromiseInitializeAsRejected(this, storedError);
       this._closedPromise.catch(() => {});
     }
