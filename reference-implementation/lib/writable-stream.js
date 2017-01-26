@@ -162,10 +162,8 @@ function WritableStreamAbort(stream, reason) {
 }
 
 function WritableStreamFinishAbort(stream) {
-  const error = new TypeError('Aborted');
-
   stream._state = 'errored';
-  stream._storedError = error;
+  stream._storedError = new TypeError('Aborted');
 
   WritableStreamRejectPromisesInReactionToError(stream);
 }
@@ -188,19 +186,12 @@ function WritableStreamAddWriteRequest(stream) {
   return promise;
 }
 
-function WritableStreamRejectPendingAbortRequest(stream) {
-  if (stream._pendingAbortRequest !== undefined) {
-    stream._pendingAbortRequest._reject(stream._storedError);
-    stream._pendingAbortRequest = undefined;
-  }
-}
-
 function WritableStreamFinishInflightWrite(stream) {
-  const state = stream._state;
-
   assert(stream._inflightWriteRequest !== undefined);
   stream._inflightWriteRequest._resolve(undefined);
   stream._inflightWriteRequest = undefined;
+
+  const state = stream._state;
 
   if (state === 'errored') {
     WritableStreamRejectPendingAbortRequest(stream);
@@ -225,6 +216,10 @@ function WritableStreamFinishInflightWrite(stream) {
 }
 
 function WritableStreamFinishInflightWriteWithError(stream, reason) {
+  assert(stream._inflightWriteRequest !== undefined);
+  stream._inflightWriteRequest._reject(reason);
+  stream._inflightWriteRequest = undefined;
+
   const state = stream._state;
 
   let wasAborted = false;
@@ -233,10 +228,6 @@ function WritableStreamFinishInflightWriteWithError(stream, reason) {
   }
 
   const readyPromiseIsPending = IsWritableStreamReadyPromisePending(stream);
-
-  assert(stream._inflightWriteRequest !== undefined);
-  stream._inflightWriteRequest._reject(reason);
-  stream._inflightWriteRequest = undefined;
 
   if (state === 'errored') {
     WritableStreamRejectPendingAbortRequest(stream);
@@ -257,16 +248,16 @@ function WritableStreamFinishInflightWriteWithError(stream, reason) {
 }
 
 function WritableStreamFinishInflightClose(stream) {
+  assert(stream._inflightCloseRequest !== undefined);
+  stream._inflightCloseRequest._resolve(undefined);
+  stream._inflightCloseRequest = undefined;
+
   const state = stream._state;
 
   let wasAborted = false;
   if (stream._pendingAbortRequest !== undefined) {
     wasAborted = true;
   }
-
-  assert(stream._inflightCloseRequest !== undefined);
-  stream._inflightCloseRequest._resolve(undefined);
-  stream._inflightCloseRequest = undefined;
 
   if (state === 'errored') {
     WritableStreamRejectPendingAbortRequest(stream);
@@ -300,16 +291,16 @@ function WritableStreamFinishInflightClose(stream) {
 }
 
 function WritableStreamFinishInflightCloseWithError(stream, reason) {
+  assert(stream._inflightCloseRequest !== undefined);
+  stream._inflightCloseRequest._reject(reason);
+  stream._inflightCloseRequest = undefined;
+
   const state = stream._state;
 
   let wasAborted = false;
   if (stream._pendingAbortRequest !== undefined) {
     wasAborted = true;
   }
-
-  assert(stream._inflightCloseRequest !== undefined);
-  stream._inflightCloseRequest._reject(reason);
-  stream._inflightCloseRequest = undefined;
 
   if (state === 'errored') {
     WritableStreamRejectPendingAbortRequest(stream);
@@ -355,6 +346,13 @@ function WritableStreamRejectClosedPromiseIfAny(stream) {
   if (writer !== undefined) {
     defaultWriterClosedPromiseReject(writer, stream._storedError);
     writer._closedPromise.catch(() => {});
+  }
+}
+
+function WritableStreamRejectPendingAbortRequest(stream) {
+  if (stream._pendingAbortRequest !== undefined) {
+    stream._pendingAbortRequest._reject(stream._storedError);
+    stream._pendingAbortRequest = undefined;
   }
 }
 
