@@ -278,14 +278,12 @@ function WritableStreamFinishInflightClose(stream) {
   }
 
   stream._state = 'errored';
-  stream._storedError = error;
+  stream._storedError = new TypeError('Abort requested but closed successfully');
 
   // No readyPromise resetting to rejected?
 
   stream._pendingAbortRequest._resolve();
   stream._pendingAbortRequest = undefined;
-
-  const error = new TypeError('Abort requested but closed successfully');
 
   WritableStreamRejectClosedPromiseIfAny(stream);
 }
