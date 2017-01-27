@@ -425,7 +425,6 @@ class WritableStreamDefaultWriter {
     } else {
       assert(state === 'errored', 'state must be errored');
 
-      // TODO: Test this
       const storedError = stream._storedError;
       defaultWriterReadyPromiseInitializeAsRejected(this, storedError);
       this._readyPromise.catch(() => {});
@@ -777,6 +776,21 @@ function WritableStreamDefaultControllerWrite(controller, chunk) {
   WritableStreamDefaultControllerAdvanceQueueIfNeeded(controller);
 }
 
+function WritableStreamDefaultControllerStart(controller) {
+  const startResult = InvokeOrNoop(controller._underlyingSink, 'start', [controller]);
+  Promise.resolve(startResult).then(
+    () => {
+      controller._started = true;
+      // TODO: Test this.
+      WritableStreamDefaultControllerAdvanceQueueIfNeeded(controller);
+    },
+    r => {
+      WritableStreamDefaultControllerErrorIfNeeded(controller, r);
+    }
+  )
+  .catch(rethrowAssertionErrorRejection);
+}
+
 // Abstract operations for the WritableStreamDefaultController.
 
 function IsWritableStreamDefaultController(x) {
@@ -880,21 +894,6 @@ function WritableStreamDefaultControllerProcessWrite(controller, chunk) {
       if (wasErrored === false) {
         controller._queue = [];
       }
-    }
-  )
-  .catch(rethrowAssertionErrorRejection);
-}
-
-function WritableStreamDefaultControllerStart(controller) {
-  const startResult = InvokeOrNoop(controller._underlyingSink, 'start', [controller]);
-  Promise.resolve(startResult).then(
-    () => {
-      controller._started = true;
-      // TODO: Test this.
-      WritableStreamDefaultControllerAdvanceQueueIfNeeded(controller);
-    },
-    r => {
-      WritableStreamDefaultControllerErrorIfNeeded(controller, r);
     }
   )
   .catch(rethrowAssertionErrorRejection);
